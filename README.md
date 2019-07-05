@@ -13,4 +13,4 @@ ArduinoJson https://github.com/bblanchon/ArduinoJson
 To realize some cofiguration functions of the sensor platform the bmp280 and dht11 libraries are slightly modified.
 It includes SPI pin setup, SPI and I2C connection checking and single wire transmission pin setup.
 
-During using the main file please substitute the original src files in libraries with those four modified files.
+During using the firmware file please substitute the original src files in libraries with those modified files.
