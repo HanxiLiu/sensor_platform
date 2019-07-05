@@ -21,4 +21,4 @@ esp8266core  https://github.com/esp8266/Arduino
 To realize some cofiguration functions of the sensor platform the bmp280 and dht11 libraries are slightly modified.
 It includes SPI pin setup, SPI and I2C connection checking and single wire transmission pin setup.
 
-During using the firmware file please substitute the original src files in libraries with those modified files.
+Before using the firmware file please substitute the original src files in libraries with those modified files.
