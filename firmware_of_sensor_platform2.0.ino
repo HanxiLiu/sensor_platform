@@ -704,7 +704,7 @@ void send_config(char* topic){
   i2c_pins["sda"]=BMP280_SDA;
   i2c_pins["scl"]=BMP280_SCL;
   configuration["single_wire_pin"]=SINGLE_WIRE_PIN;
-  configuration["digital_pin"]=DIGITAL_PIN=0;
+  configuration["digital_pin"]=DIGITAL_PIN;
 
   serializeJson(doc,json_config);
   client.publish(topic,json_config);
