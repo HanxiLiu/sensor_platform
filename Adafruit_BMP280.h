@@ -158,6 +158,8 @@ public:
   Adafruit_BMP280(int8_t cspin, int8_t mosipin, int8_t misopin, int8_t sckpin);
 
   void spi_pins(int8_t cspin,int8_t mosipin,int8_t misopin,int8_t sckpin); /*this function is added by author Hanxi Liu*/
+
+  void i2c_pins(int sda,int scl);/*this function is added by author Hanxi Liu*/
   
   bool is_connected(uint8_t chipid=BMP280_CHIPID); /*this function is added by author Hanxi Liu*/
 
@@ -223,6 +225,7 @@ private:
   int32_t _sensorID;
   int32_t t_fine;
   int8_t _cs, _mosi, _miso, _sck;
+  int _sda,_scl;/*this function is added by author Liu Hanxi, I2C pins*/
   bmp280_calib_data _bmp280_calib;
   config _configReg;
   ctrl_meas _measReg;
