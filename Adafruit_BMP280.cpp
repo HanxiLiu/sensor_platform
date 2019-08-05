@@ -74,6 +74,17 @@ void Adafruit_BMP280::spi_pins(int8_t cspin,int8_t mosipin,int8_t misopin,int8_t
   _cs=cspin; _mosi=mosipin; _miso=misopin; _sck=sckpin;
 }
 
+
+/* @brief  Change spi pins. This function is added by author Hanxi Liu
+ * @param  sda
+ * 	   The pin to use for SDA
+ * @param  scl
+ * 	   The pin to use for SCL
+ */
+void Adafruit_BMP280::i2c_pins(int sda,int scl){
+  _sda=sda;_scl=scl;
+}
+
 /* @brief  Check wiring using sensor id, if read sensor id is equal to defined id in specification, that means it is still connected, otherwise it is not
  *	   This function is added by author Hanxi Liu
  */
@@ -96,7 +107,7 @@ bool Adafruit_BMP280::begin(uint8_t addr, uint8_t chipid) {
 
   if (_cs == -1) {
     // i2c
-    _wire->begin();
+    _wire->begin(_sda,_scl);
   } else {
     digitalWrite(_cs, HIGH);
     pinMode(_cs, OUTPUT);
