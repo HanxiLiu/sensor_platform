@@ -10,6 +10,7 @@
 #include<Ticker.h>
 #include<math.h>
 
+/*------------------------------------------------------------------------------------------------------------------------------------*/
 /*The following part is default config in nodemcu*/
 
 /*SPI pins definition of bmp280, data type is based on the interface of function in <Adafruit_BMP280.h>*/
@@ -43,20 +44,19 @@ float data[MAX_SENSORS][MAX_SAMPLES];
 /*Switch flags to indicate if a sensor is on, 1 means on, 0 means off.Initial condition can be defined by config in database.
   In setup function all flags will be at first set to 0(off) 
   Attention!!! the order of correspoding sensors should be defined and used by user exactly e.g. flag[1] represents bmp280,flag[2] represents dht11 
-  This flag array is often used in many later on shown up function*/
+  This flag array is often used in many functions that show up later on*/
 int flag[MAX_SENSORS];
 /*sensor attributes, which can be rewritten by user through nodered */
 String sensor_ids[MAX_SENSORS] = {"bmp280","bmp280","dht11","st1147","button"};
 String sensor_descriptions[MAX_SENSORS] = {"atmospheric pressure","altitude", "humidity","temperature","button"};
 String sensor_units[MAX_SENSORS] = {"pa","m","%","°C","no unit"};
 String sensor_group_ids[MAX_SENSORS] = {"","","","",""};
-/*this parameter is to count the sample steps*/
-int data_capture_iteration = 0;
 /*timestamps container*/
 String timestamps[MAX_SENSORS];
-/*updata timestamp flag*/
-bool update_timestamp = false;
 
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part contains declarations of sensors*/
 
 
 /*bmp280 I2C and SPI class*/
@@ -77,6 +77,10 @@ Adafruit_BMP280::sensor_filter      working_filter=Adafruit_BMP280::FILTER_OFF;
 Adafruit_BMP280::standby_duration   working_standby_duration=Adafruit_BMP280::STANDBY_MS_250;
 
 
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part contains flags used in loop() */
+
+
 /*Request flags,1 means there is a setting change request, 0 means no request.
   Those flags are used at the beginning of void loop(),where the setup function like sensor.begin() are placed.
   Usually those setup function are placed at void setup(), but in order to update the parameter they have to be 
@@ -94,6 +98,14 @@ int FORCED_MEASUREMENT_FLAG=0;          //bmp280 special mode flag,only for bmp2
 int READ_CONFIG_FLAG=1;
 
 
+/*------------------------------------------------------------------------------------------------------------------------------------*/
+/*This part contains some global variables to help to record data*/
+
+
+/*this parameter is to count the sample steps*/
+int data_capture_iteration = 0;
+
+
 /*array for data of forced measurement of bmp280*/
 char pressure[32];
 char altitude[32];
@@ -105,6 +117,10 @@ char altitude[32];
 float humidity=-1;
 float atmospheric_pressure=-1;
 float local_altitude=-1;
+
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part is setup about connection, message and ticker*/
 
 
 /*NTP and time settings*/
@@ -144,7 +160,7 @@ PubSubClient client(espClient);
 
 
 /*set up wifi*/
-void setup_wifi(){
+  void setup_wifi(){
   delay(10);
   Serial.println();
   Serial.print("Connecting to ");
@@ -167,6 +183,10 @@ void setup_wifi(){
   Serial.println("IP address:");
   Serial.println(WiFi.localIP());
 }
+
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part is Processing of received data*/
 
 
 /* This function shows up in void callback() function.
@@ -510,6 +530,10 @@ void callback(char* topic,byte* payload,unsigned int length){
 }
 
 
+/*------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part contains necessary functions*/
+
+
 /*reconnection function of mqtt client, loop to reconnect to mqtt broker*/
 void reconnect(){
   while(!client.connected()){
@@ -550,18 +574,6 @@ void reconnect(){
       delay(5000);
     }
   }
-}
-
-
-/*st1147 analog temperature sensor, this function is used to measure temperature*/
-double st1147(int RawADC){
-  if(RawADC==4095)
-    RawADC--;//because denominator in later formula can't be 0
-  double Temp;
-  Temp=log(RawADC*10000/(4095-RawADC));
-  Temp=1/(0.001129148+(0.000234125+(0.0000000876741*Temp*Temp))*Temp);
-  Temp=Temp-273.15;
-  return Temp;
 }
 
 
@@ -743,6 +755,22 @@ void send_config(char* topic){
 }
 
 
+/*st1147 analog temperature sensor, this function is used to measure temperature*/
+double st1147(int RawADC){
+  if(RawADC==4095)
+    RawADC--;//because denominator in later formula can't be 0
+  double Temp;
+  Temp=log(RawADC*10000/(4095-RawADC));
+  Temp=1/(0.001129148+(0.000234125+(0.0000000876741*Temp*Temp))*Temp);
+  Temp=Temp-273.15;
+  return Temp;
+}
+
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*This part is setup function*/
+
+
 void setup() {
   /*set every flag to 0(off) including those position without sensors,this is default condition*/
   for(int i=0;i<MAX_SENSORS;i++){
@@ -775,6 +803,11 @@ void setup() {
   Serial.println();
   t_stamp_millis_init = millis();
 }
+
+
+/*-------------------------------------------------------------------------------------------------------------------------------------*/
+/*The following part is loop function*/
+
 
 void loop() {
 /*try to connect to begin with,or try to reconnect when in disconnected condition*/
