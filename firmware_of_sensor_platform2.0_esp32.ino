@@ -8,7 +8,6 @@
 #include<WiFiUdp.h>
 #include<ArduinoJson.h>
 #include<Ticker.h>
-#include<math.h>
 
 /*------------------------------------------------------------------------------------------------------------------------------------*/
 /*The following part is default config in nodemcu*/
@@ -29,35 +28,38 @@ uint8_t DIGITAL_PIN=5;
 int ANALOG_PIN=34;
 /*General switch of sample, 1 means on, 0 means off*/
 int SAMPLE_SWITCH=0;
-/*Actual amount of samples in each json, can be defined by user through nodered*/
+/*Actual amount of samples in each json message, can be defined by user using nodered*/
 int SAMPLES = 20;
 /*Actual amount of sensors, can be defined by user through nodered,has to be adjusted to the real amount,
-  because it will be used for instance in void send_config(char* topic) to generate a config in json form, very important!!!*/
+because it will be used for instance in void send_config(char* topic) to generate a config in json form, very important!!!*/
 int SENSORS=5;   
 /*Sample rate defined by user,unit Hz*/
 float SAMPLERATE=2;
-/*Max allowed amount of sensors attached and samples in each json, these two parameters are used to create a 2d array to store sampled data*/
+/*Max allowed amount of sensors attached and samples in each json, these two parameters are used to create a 2d array(data[MAX_SENSORS][MAX_SAMPLES])to store sampled data*/
 const int MAX_SENSORS=10;
 const int MAX_SAMPLES=100;  
 /*This is the 2d array to store sampled data*/
 float data[MAX_SENSORS][MAX_SAMPLES];
 /*Switch flags to indicate if a sensor is on, 1 means on, 0 means off.Initial condition can be defined by config in database.
-  In setup function all flags will be at first set to 0(off) 
-  Attention!!! the order of correspoding sensors should be defined and used by user exactly e.g. flag[1] represents bmp280,flag[2] represents dht11 
-  This flag array is often used in many functions that show up later on*/
+  In setup function, all flags will be set to 0(off) at first
+  Attention!!! the order of correspoding sensors should be defined and used by user exactly e.g. flag[1] represents bmp280,flag[2] represents dht11. 
+  This flag array is often used in many functions that show up later on(data_capture,json_create_msg,send_config,setup,loop)*/
 int flag[MAX_SENSORS];
 /*sensor attributes, which can be rewritten by user through nodered */
 String sensor_ids[MAX_SENSORS] = {"bmp280","bmp280","dht11","st1147","button"};
 String sensor_descriptions[MAX_SENSORS] = {"atmospheric pressure","altitude", "humidity","temperature","button"};
 String sensor_units[MAX_SENSORS] = {"pa","m","%","°C","no unit"};
 String sensor_group_ids[MAX_SENSORS] = {"","","","",""};
-/*timestamps container*/
+/*timestamps container, used int data_capture */
 String timestamps[MAX_SENSORS];
 
 
 /*-------------------------------------------------------------------------------------------------------------------------------------*/
-/*The following part contains declarations of sensors*/
+/*The following part contains some gloabal declarations and class of sensors*/
 
+
+/*Ticker*/
+Ticker ticker;
 
 /*bmp280 I2C and SPI class*/
 Adafruit_BMP280 bmp280_i2c; 
@@ -78,7 +80,7 @@ Adafruit_BMP280::standby_duration   working_standby_duration=Adafruit_BMP280::ST
 
 
 /*-------------------------------------------------------------------------------------------------------------------------------------*/
-/*The following part contains flags used in loop() */
+/*The following part contains flags used in loop() and some other functions*/
 
 
 /*Request flags,1 means there is a setting change request, 0 means no request.
@@ -98,12 +100,21 @@ int FORCED_MEASUREMENT_FLAG=0;          //bmp280 special mode flag,only for bmp2
 int READ_CONFIG_FLAG=1;
 
 
+/*json sending flag, messages are sent when send_json is true*/
+bool send_json = false;
+
+
 /*------------------------------------------------------------------------------------------------------------------------------------*/
-/*This part contains some global variables to help to record data*/
+/*This part contains some global variables or array as container to help to record data*/
 
 
 /*this parameter is to count the sample steps*/
 int data_capture_iteration = 0;
+
+
+/*container of json message, used when publishing message in function "client.publish("theme",string_name)"*/
+char json_out[2048];
+char json_config[2048];
 
 
 /*array for data of forced measurement of bmp280*/
@@ -120,7 +131,7 @@ float local_altitude=-1;
 
 
 /*-------------------------------------------------------------------------------------------------------------------------------------*/
-/*The following part is setup about connection, message and ticker*/
+/*The following part is setup about connection*/
 
 
 /*NTP and time settings*/
@@ -138,23 +149,13 @@ unsigned short remotePort = 1337;
 unsigned short localPort = 1337;
 
 
-/*JSON Settings*/
-bool send_json = false;
-char json_out[2048];
-char json_config[2048];
-
-
-/*Ticker*/
-Ticker ticker;
-
-
 /*wifi parameter*/
 const char* ssid = "Hotspot111";
 const char* password = "sffe2541";
-const IPAddress mqtt_server(192,168,43,10);
 
 
 /*mqtt client parameter and setting*/
+const IPAddress mqtt_server(192,168,43,10);
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -303,7 +304,7 @@ void callback(char* topic,byte* payload,unsigned int length){
         {working_standby_duration=Adafruit_BMP280::STANDBY_MS_4000;}
       else{}
   }
-  /*bmp280 i2c pin*/
+  /*bmp280 i2c switch*/
   else if(String(topic)==String("bmp280 i2c")){
       if(compare(payload,"on",length)){
         flag[0]=1;
@@ -316,7 +317,7 @@ void callback(char* topic,byte* payload,unsigned int length){
       else{}
       send_config("config/update");
   }
-  /*bmp280 spi pin*/
+  /*bmp280 spi switch*/
   else if(String(topic)==String("bmp280 spi")){
       if(compare(payload,"on",length)){
         flag[1]=1;
@@ -329,7 +330,7 @@ void callback(char* topic,byte* payload,unsigned int length){
       else{}
       send_config("config/update");
   }
-  /*dht11 single wire pin*/
+  /*dht11 single wire switch*/
   else if(String(topic)==String("dht11 single wire")){
       if(compare(payload,"on",length)){
         flag[2]=1;
@@ -490,7 +491,7 @@ void callback(char* topic,byte* payload,unsigned int length){
       SAMPLES=number;
       send_config("config/update");
   }
-  /*reiceiving configuration after publishing inquirement*/
+  /*reiceiving configuration after publishing acquirement*/
   else if(String(topic)==String("config/from_database")){
       char new_payload[length+1];
       new_payload[length]='\0';
